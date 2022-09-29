@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart' as hooks;
+import 'package:flutter_redux/flutter_redux.dart';
 import 'package:redux/redux.dart';
 
 void main() {
@@ -116,16 +118,99 @@ ItemFilter itemFilterReducer(
   }
 }
 
-State appStateReducer(State oldState, Action action) => State(
+State appStateReducer(State oldState, action) => State(
       items: itemsReducer(oldState.items, action),
       filter: itemFilterReducer(oldState, action),
     );
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends hooks.HookWidget {
   const MyHomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container();
+    final store = Store(
+      appStateReducer,
+      initialState: const State(items: [], filter: ItemFilter.all),
+    );
+    final controller = hooks.useTextEditingController();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home Page'),
+      ),
+      body: StoreProvider(
+        store: store,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => store.dispatch(
+                      const ChangeFilterTypeAction(filter: ItemFilter.all),
+                    ),
+                    child: const Text('All'),
+                  ),
+                  TextButton(
+                    onPressed: () => store.dispatch(
+                      const ChangeFilterTypeAction(
+                          filter: ItemFilter.shortTexts),
+                    ),
+                    child: const Text('Short items'),
+                  ),
+                  TextButton(
+                    onPressed: () => store.dispatch(
+                      const ChangeFilterTypeAction(filter: ItemFilter.longtext),
+                    ),
+                    child: const Text('Long items'),
+                  ),
+                ],
+              ),
+              const SizedBox(
+                height: 10,
+              ),
+              TextField(
+                controller: controller,
+              ),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      final text = controller.text;
+                      store.dispatch(
+                        AddItemAction(item: text),
+                      );
+                      controller.clear();
+                    },
+                    child: const Text('Add'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      final text = controller.text;
+                      store.dispatch(
+                        RemoveItemAction(item: text),
+                      );
+                      controller.clear();
+                    },
+                    child: const Text('Remove'),
+                  ),
+                ],
+              ),
+              StoreConnector<State, Iterable<String>>(
+                builder: (context, items) {
+                  return Expanded(
+                    child: ListView.builder(itemBuilder: (context,index){
+                      final item = items.elementAt(index);
+                      return Text(item);
+                    },itemCount: items.length,),
+                  );
+                },
+                converter: (store) => store.state.filteredItems,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
